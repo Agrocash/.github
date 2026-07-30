@@ -1,0 +1,17 @@
+# Dono padrão de todo o repositório.
+#
+# Combinado com o ruleset da organização (`Main`), que exige
+# `require_code_owner_review = true` e 1 aprovação, isto faz com que NENHUM pull
+# request seja mergeável sem a aprovação do dono listado aqui.
+#
+# A regra `*` cobre todos os caminhos. Não há exceções de propósito: qualquer
+# padrão mais específico abaixo desta linha SOBRESCREVERIA o dono para aqueles
+# arquivos, o que abriria um caminho sem revisão.
+#
+# Atenção ao adicionar donos no futuro: o CODEOWNERS só tem efeito se o usuário
+# ou time tiver acesso de escrita ao repositório. Dono inválido (usuário
+# inexistente, ou time de outra organização) é ignorado em silêncio — o arquivo
+# parece protegido e não protege. Foi o caso do CODEOWNERS anterior deste
+# repositório, que apontava para um time que não existe mais.
+
+* @msserpa
