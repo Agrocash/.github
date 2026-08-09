@@ -1,0 +1,14 @@
+# Dono padrão de todo o repositório.
+#
+# O ruleset da organização (`Main`) exige `require_code_owner_review = true` e
+# 1 aprovação. Sem bypass autorizado, todo pull request precisa da aprovação do
+# dono listado aqui.
+#
+# A regra `*` cobre todos os caminhos. Um padrão mais específico a substituiria
+# e precisa manter ao menos um owner válido, com acesso de escrita; por isso não
+# há padrões adicionais de propósito.
+#
+# Valide mudanças futuras pelo endpoint `codeowners/errors`: owners inválidos
+# não protegem os caminhos correspondentes.
+
+* @msserpa
