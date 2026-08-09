@@ -18,6 +18,16 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
+      - name: Validar contrato do workflow
+        shell: bash
+        run: |
+          ruby .github/scripts/check-ci-workflow.rb
+
+      - name: Executar mutações do workflow
+        shell: bash
+        run: |
+          python3 .github/scripts/test-ci-workflow.py
+
       - name: Validar diff e profile
         shell: bash
         run: |
