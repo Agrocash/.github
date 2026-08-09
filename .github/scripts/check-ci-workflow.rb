@@ -22,6 +22,7 @@ def reject_ambiguous_yaml(node, path = "document")
     node.children.each_slice(2) do |key, value|
       abort "#{path}: chave não escalar" unless key.is_a?(Psych::Nodes::Scalar)
 
+      reject_ambiguous_yaml(key, "#{path}.<key>")
       identity = key.value
       abort "#{path}: chave duplicada #{identity.inspect}" if keys.key?(identity)
 

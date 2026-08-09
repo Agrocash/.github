@@ -45,6 +45,14 @@ validation_step = """\
 """
 
 mutations = {
+    "tag explícita em chave": (
+        replace_once(workflow, "permissions:\n", "!!str permissions:\n"),
+        "tags YAML explícitas não são permitidas",
+    ),
+    "anchor em chave": (
+        replace_once(workflow, "permissions:\n", "&permissions permissions:\n"),
+        "anchors não são permitidos",
+    ),
     "top-level extra": (
         replace_once(workflow, "permissions:\n", "env: {}\n\npermissions:\n"),
         "top-level diverge",
