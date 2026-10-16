@@ -1,0 +1,96 @@
+name: HML Refresh Integrity
+
+on:
+  pull_request_target:
+    types: [opened, reopened, synchronize, edited]
+
+permissions:
+  contents: read
+
+jobs:
+  immutable-refresh-gate:
+    name: Immutable HML refresh gate
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Validate workflow and PR target
+        env:
+          RUN_REPOSITORY: ${{ github.repository }}
+          WORKFLOW_REF: ${{ github.workflow_ref }}
+          WORKFLOW_SHA: ${{ github.workflow_sha }}
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_REPO: ${{ github.event.pull_request.base.repo.full_name }}
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
+        run: |
+          test "$EVENT_NAME" = pull_request_target
+          [[ "$WORKFLOW_REF" == Agrocash/.github/.github/workflows/hml-refresh-integrity.yml@* ]]
+          test "${WORKFLOW_REF#*@}" != "$WORKFLOW_REF"
+          REF_SUFFIX="${WORKFLOW_REF#*@}"
+          test -n "$REF_SUFFIX"
+          [[ "$WORKFLOW_SHA" =~ ^[0-9a-f]{40}$ ]]
+          if [[ "$REF_SUFFIX" != refs/heads/main ]]; then
+            [[ "$REF_SUFFIX" =~ ^[0-9a-f]{40}$ ]]
+            test "$REF_SUFFIX" = "$WORKFLOW_SHA"
+          fi
+          test "$BASE_REPO" = "$RUN_REPOSITORY"
+          test "$BASE_REF" = main
+          case "$RUN_REPOSITORY" in
+            Agrocash/.github|Agrocash/agrocash-terraform) ;;
+            *) exit 1 ;;
+          esac
+      - name: Checkout protected Terraform gate
+        if: github.repository == 'Agrocash/agrocash-terraform'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: Agrocash/agrocash-terraform
+          ref: 79e3ae4a54e1a5878ef882cdd1db292495a423c3
+          path: protected
+          persist-credentials: false
+      - name: Verify protected Terraform source identity
+        if: github.repository == 'Agrocash/agrocash-terraform'
+        env:
+          PROTECTED_SHA: 79e3ae4a54e1a5878ef882cdd1db292495a423c3
+        run: |
+          test "$(git -C protected rev-parse HEAD)" = "$PROTECTED_SHA"
+      - name: Materialize verified candidate data
+        if: github.repository == 'Agrocash/agrocash-terraform'
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          CANDIDATE_REPO: ${{ github.event.pull_request.head.repo.full_name }}
+          CANDIDATE_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          mkdir candidate
+          python3 -I protected/.github/scripts/verified-pr-snapshot.py \
+            --repo "$CANDIDATE_REPO" --sha "$CANDIDATE_SHA" --destination candidate
+      - name: Materialize verified base data
+        if: github.repository == 'Agrocash/agrocash-terraform'
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          mkdir base
+          python3 -I protected/.github/scripts/verified-pr-snapshot.py \
+            --repo Agrocash/agrocash-terraform --sha "$BASE_SHA" --destination base
+      - name: Probe candidate contract
+        if: github.repository == 'Agrocash/agrocash-terraform'
+        id: probe
+        run: |
+          python3 -I protected/.github/scripts/check-immutable-refresh-gate.py probe \
+            --protected-root protected --candidate-root candidate \
+            --base-root base --output "$GITHUB_OUTPUT"
+      - name: Checkout reviewed B code as data
+        if: github.repository == 'Agrocash/agrocash-terraform' && steps.probe.outputs.stage == 'C'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: Agrocash/agrocash-terraform
+          ref: ${{ steps.probe.outputs.code_sha }}
+          path: code
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Verify immutable contract
+        if: github.repository == 'Agrocash/agrocash-terraform'
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          python3 -I protected/.github/scripts/check-immutable-refresh-gate.py verify \
+            --protected-root protected --candidate-root candidate --base-root base \
+            --code-root code --base-sha "$BASE_SHA"
